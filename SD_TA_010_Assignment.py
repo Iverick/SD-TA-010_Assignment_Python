@@ -1,18 +1,18 @@
 import csv
+from datetime import date
 
 def main():
     assessmentResultsPath = "input_files/Assessment_Results.csv"
     industryCertPath = "input_files/Industry_Cert_Results.csv"
     outputFolder = "output_files"
-        
+
     try:
         assessmentResults = readAssessmentResults(assessmentResultsPath)
-        industryCerts = readIndustryCerts(industryCertPath)
-        assessmentResults = mergeResults(assessmentResults, industryCerts)
+        assessmentResults = readIndustryCerts(industryCertPath, assessmentResults)
         assessmentResults = calculateOverallScore(assessmentResults)
         # For every student generate an output txt file
-        for studentResult in assessmentResults:
-            generateTxtResult(studentResult, outputFolder)
+        for studentName in assessmentResults:
+            generateTxtResult(assessmentResults[studentName], studentName, outputFolder)
     except:
         print("Error in program execution")
     finally:
@@ -20,13 +20,13 @@ def main():
 
 
 '''
-Reads data from assessmentResults file with provided path and converts them into a list
+Reads data from assessmentResults file with provided path and stores them into a assessmentResults dict
 
 assessmentResults has the following structure:
-[{studentName: {'grades': {'courseName': 'PASS/FAIL'}, 'cloudCert': None, 'optionCert': None}}, ...]
+{studentName: {'grades': {'courseName': 'PASS/FAIL'}, 'cloudCert': None, 'optionCert': None}, ...}
 '''
 def readAssessmentResults(filePath):
-    assessmentResults = []
+    assessmentResults = {}
     PASS_MARK = 50
     courseNames = [
         'SD-TA-001 Software Development and Design Fundamentals',
@@ -60,26 +60,21 @@ def readAssessmentResults(filePath):
             courseName = courseNames[i]
             grade = row [i + 1]
             studentGrades[courseName] = 'PASS' if int(grade) >= PASS_MARK else 'FAIL'
-        studentResult = {
-            studentName: {
-                'grades': studentGrades,
-                'cloudCert': None,
-                'optionCert': None,
-                'overallScore': None
-            }
+        assessmentResults[studentName] = {
+            'grades': studentGrades,
+            'cloudCert': None,
+            'optionCert': None,
+            'overallScore': None
         }
-        assessmentResults.append(studentResult)
     return assessmentResults
 
 
 '''
-Reads data from Industry_Cert file with provided path and converts them into a dict
+Reads data from Industry_Cert file with provided path and updates corresponding 'cloudCert' and 'optionCert' values in assessmentResults
 
-assessmentResults has the following structure:
-[{studentName: [{'cloudCert': 'PASS/FAIL'}, {'optionCert': 'PASS/FAIL'}]}]
+returns assessmentResults dict
 '''
-def readIndustryCerts(filePath):
-    industryCerts = []
+def readIndustryCerts(filePath, assessmentResults):
     with open(filePath, newline='') as csvfile:
         rows = csv.reader(csvfile)
         rowsList = list(rows)
@@ -88,65 +83,44 @@ def readIndustryCerts(filePath):
     # Name is the first col, cloudCert date is the second, optionCert is a one of the following columns
     for row in rowsList[2:]:
         name = row[0]
-        cloudCert = {
-            'cloudCert': 'PASS' if hasPassedCert(row[1]) else 'FAIL'
-        }
-        optionCert = {'optionCert': 'FAIL'}
-
+        studentResults = assessmentResults[name]
+        cloudCert = 'PASS' if hasPassedCert(row[1]) else 'FAIL'
+        optionCert = 'FAIL'
         for col in row[2:]:
             if hasPassedCert(col):
-                optionCert = {'optionCert': 'PASS'}
+                optionCert = 'PASS'
                 break
             
-        studentOutput = {name: [cloudCert, optionCert]}
-        industryCerts.append(studentOutput)
-    return industryCerts
-
-
-'''
-Merges assessmentResults and industryCert data into a single list.
-Uses student as a key for both passed list
-
-returns:
-[{studentName: {'grades': {'courseName': 'PASS/FAIL'}, 'cloudCert': Bool, 'optionCert': Bool}}, ...]
-'''
-def mergeResults(assessmentResults, industryCerts):
-    for industryResult in industryCerts:
-        name = list(industryResult.keys())[0]
-        # For every assessmentResult, update corresponding 'cloudCert' and 'optionCert' values
-        for assessmentResult in assessmentResults:
-            if name in assessmentResult:
-                assessmentResult[name]['cloudCert'] = industryResult[name][0]['cloudCert']
-                assessmentResult[name]['optionCert'] = industryResult[name][1]['optionCert']
+        studentResults['cloudCert'] = cloudCert
+        studentResults['optionCert'] = optionCert
     return assessmentResults
 
 
 '''
-Method loops through all provided assessment scores in assessmentResults dict and uses their values to calculate overallScore 
+Method loops through all provided assessment scores for every student in assessmentResults dict and uses their values to calculate overallScore 
 '''
 def calculateOverallScore(assessmentResults):
-    for studentResult in assessmentResults:
-        name = list(studentResult.keys())[0]
-        student = studentResult[name]
+    for studentName in assessmentResults:
+        studentGrades = assessmentResults[studentName]
         # Overall scores is 'PASS' only when every assessment result is 'PASS'
-        if 'FAIL' in student['grades'].values() or student['cloudCert'] == 'FAIL' or student['optionCert'] == 'FAIL':
-            student['overallScore'] = 'FAIL'
+        if 'FAIL' in studentGrades['grades'].values() or studentGrades['cloudCert'] == 'FAIL' or studentGrades['optionCert'] == 'FAIL':
+            studentGrades['overallScore'] = 'FAIL'
         else:
-            student['overallScore'] = 'PASS'
+            studentGrades['overallScore'] = 'PASS'
     return assessmentResults
 
 
 '''
 Method formats student results data in a readable way, adds data into an output file and saves the file in the output folder
 '''
-def generateTxtResult(studentResult, outputFolder):
-    name = list(studentResult.keys())[0]
-    student = studentResult[name]
+def generateTxtResult(student, name, outputFolder):
+    generationDate = date.today().strftime("%d/%m/%Y")
 
     lines = []
     lines.append("=" * 90)
     lines.append("Summary Results \n")
     lines.append(f"{'Student Name':<65} | {name}")
+    lines.append(f"{'Date Generated':<65} | {generationDate}")
     lines.append("=" * 90)
     lines.append("Assessment Results")
     lines.append("-" * 90)
