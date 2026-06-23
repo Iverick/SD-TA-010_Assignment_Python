@@ -5,28 +5,41 @@ def main():
     assessmentResultsPath = "input_files/Assessment_Results.csv"
     industryCertPath = "input_files/Industry_Cert_Results.csv"
     outputFolder = "output_files"
+    '''
+    assessmentResults supposed to have this structure:
+    {studentName: {'grades': {courseName: 'PASS/FAIL'}, 'cloudCert': 'PASS', 'optionCert': 'PASS', 'overallScore': 'PASS'}, ...}
+    '''
+    assessmentResults = {}
+
+    # NOTE: Remove from the final build
+    # readAssessmentResults(assessmentResultsPath, assessmentResults)
+    # readIndustryCerts(industryCertPath, assessmentResults)
+    # calculateOverallScore(assessmentResults)
+    # # For every student generate an output txt file
+    # for studentName in assessmentResults:
+    #     generateTxtResult(assessmentResults[studentName], studentName, outputFolder)
+
 
     try:
-        assessmentResults = readAssessmentResults(assessmentResultsPath)
-        assessmentResults = readIndustryCerts(industryCertPath, assessmentResults)
-        assessmentResults = calculateOverallScore(assessmentResults)
+        readAssessmentResults(assessmentResultsPath, assessmentResults)
+        readIndustryCerts(industryCertPath, assessmentResults)
+        calculateOverallScore(assessmentResults)
         # For every student generate an output txt file
         for studentName in assessmentResults:
             generateTxtResult(assessmentResults[studentName], studentName, outputFolder)
-    except:
-        print("Error in program execution")
-    finally:
         print("Generated all reports!")
+    except Exception as e:
+        print("Error in program execution: ", e)
+    finally:
+        print("Program finished!")
 
 
 '''
 Reads data from assessmentResults file with provided path and stores them into a assessmentResults dict
 
-assessmentResults has the following structure:
-{studentName: {'grades': {'courseName': 'PASS/FAIL'}, 'cloudCert': None, 'optionCert': None}, ...}
+return updated assessmentResults
 '''
-def readAssessmentResults(filePath):
-    assessmentResults = {}
+def readAssessmentResults(filePath, assessmentResults):
     PASS_MARK = 50
     courseNames = [
         'SD-TA-001 Software Development and Design Fundamentals',
@@ -42,24 +55,27 @@ def readAssessmentResults(filePath):
         'SD-TA-011 Quality Assurance and Software Testing',
         'SD-TA-012 Systems Development'
     ]
+    rows = []
     # Open an input file and transform each line into a list
-    with open(filePath, newline='') as csvfile:
-        rows = csv.reader(csvfile)
-        rowsList = list(rows)
+    with open(filePath, 'r') as file:
+        reader = csv.reader(file)
+        for line in reader:
+            rows.append(line)
 
     # I need to get student name and list of scores for every student
-    for row in rowsList[2:]:
+    for row in rows[2:]:
+        studentGrades = {}
         # skip empty rows
         if not row[0]:
             continue
+
         studentName = row[0].strip()
-        
-        studentGrades = {}
         for i in range(len(courseNames)):
             # convert each grade into PASS or FAIL and store it to the corresponding courseName
             courseName = courseNames[i]
             grade = row [i + 1]
             studentGrades[courseName] = 'PASS' if int(grade) >= PASS_MARK else 'FAIL'
+
         assessmentResults[studentName] = {
             'grades': studentGrades,
             'cloudCert': None,
@@ -75,13 +91,15 @@ Reads data from Industry_Cert file with provided path and updates corresponding 
 returns assessmentResults dict
 '''
 def readIndustryCerts(filePath, assessmentResults):
-    with open(filePath, newline='') as csvfile:
-        rows = csv.reader(csvfile)
-        rowsList = list(rows)
+    rows = []
+    with open(filePath, 'r') as file:
+        reader = csv.reader(file)
+        for line in reader:
+            rows.append(line)
 
     # Read rows from the file
     # Name is the first col, cloudCert date is the second, optionCert is a one of the following columns
-    for row in rowsList[2:]:
+    for row in rows[2:]:
         name = row[0]
         studentResults = assessmentResults[name]
         cloudCert = 'PASS' if hasPassedCert(row[1]) else 'FAIL'
@@ -90,7 +108,7 @@ def readIndustryCerts(filePath, assessmentResults):
             if hasPassedCert(col):
                 optionCert = 'PASS'
                 break
-            
+
         studentResults['cloudCert'] = cloudCert
         studentResults['optionCert'] = optionCert
     return assessmentResults
@@ -113,7 +131,7 @@ def calculateOverallScore(assessmentResults):
 '''
 Method formats student results data in a readable way, adds data into an output file and saves the file in the output folder
 '''
-def generateTxtResult(student, name, outputFolder):
+def generateTxtResult(studentResults, name, outputFolder):
     generationDate = date.today().strftime("%d/%m/%Y")
 
     lines = []
@@ -125,16 +143,16 @@ def generateTxtResult(student, name, outputFolder):
     lines.append("Assessment Results")
     lines.append("-" * 90)
 
-    for moduleName, result in student['grades'].items():
+    for moduleName, result in studentResults['grades'].items():
         lines.append(f"{moduleName:<65} | {result}")
 
     lines.append("=" * 90)
     lines.append("Industry Certification Results")
     lines.append("-" * 90)
-    lines.append(f"{'Introduction to Cloud Development':<65} | {student['cloudCert']}")
-    lines.append(f"{'Option Certification':<65} | {student['optionCert']}")
+    lines.append(f"{'Introduction to Cloud Development':<65} | {studentResults['cloudCert']}")
+    lines.append(f"{'Option Certification':<65} | {studentResults['optionCert']}")
     lines.append("=" * 90)
-    lines.append(f"{'Overall Result':<65} | {student['overallScore']}")
+    lines.append(f"{'Overall Result':<65} | {studentResults['overallScore']}")
     lines.append("=" * 90)
 
     # Create a file add write lines list into it
@@ -151,4 +169,5 @@ def hasPassedCert(certResult):
         return False
     return True
 
+# Launch program execution
 main()
