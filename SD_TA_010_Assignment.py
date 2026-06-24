@@ -1,6 +1,10 @@
 import csv
 from datetime import date
 
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font
+
+
 def main():
     assessmentResultsPath = "input_files/Assessment_Results.csv"
     industryCertPath = "input_files/Industry_Cert_Results.csv"
@@ -17,8 +21,7 @@ def main():
     # calculateOverallScore(assessmentResults)
     # # For every student generate an output txt file
     # for studentName in assessmentResults:
-    #     generateTxtResult(assessmentResults[studentName], studentName, outputFolder)
-
+    #     generateXlslFile(assessmentResults[studentName], studentName, outputFolder)
 
     try:
         readAssessmentResults(assessmentResultsPath, assessmentResults)
@@ -26,7 +29,7 @@ def main():
         calculateOverallScore(assessmentResults)
         # For every student generate an output txt file
         for studentName in assessmentResults:
-            generateTxtResult(assessmentResults[studentName], studentName, outputFolder)
+            generateXlslFile(assessmentResults[studentName], studentName, outputFolder)
         print("Generated all reports!")
     except Exception as e:
         print("Error in program execution: ", e)
@@ -126,6 +129,46 @@ def calculateOverallScore(assessmentResults):
         else:
             studentGrades['overallScore'] = 'PASS'
     return assessmentResults
+
+
+'''
+Method writes student results data into a dedicated xlsx file in the output folder
+'''
+def generateXlslFile(studentResults, name, outputFolder):
+    generationDate = date.today().strftime("%d/%m/%Y")
+
+    wb = Workbook()
+    ws = wb.active
+
+    ws["A1"] = "Summary of Results"
+    ws["A2"] = "Student Name"
+    ws["B2"] = name
+    ws["A3"] = "Date"
+    ws["B3"] = generationDate
+    ws["A5"] = "Assessment Results"
+
+    row = 6
+    # Using for loop to write grades for every basic course
+    for courseName, grade in studentResults['grades'].items():
+        ws.cell(row=row, column=1, value=courseName)
+        ws.cell(row=row, column=2, value=grade)
+        row += 1
+
+    row += 1
+    ws.cell(row=row, column=1, value="Industry Certification Results")
+    row += 1
+    ws.cell(row=row, column=1, value="Introduction to Cloud Development")
+    ws.cell(row=row, column=2, value=studentResults['cloudCert'])
+    row += 1
+    ws.cell(row=row, column=1, value="Option Certification")
+    ws.cell(row=row, column=2, value=studentResults['optionCert'])
+    row += 2
+    ws.cell(row=row, column=1, value="Overall Result")
+    ws.cell(row=row, column=2, value=studentResults["overallScore"])
+
+    fileName = f"{outputFolder}/{name} - Summary of Results.xlsx"
+    wb.save(fileName)
+    print(f"Generated: {fileName}")
 
 
 '''
