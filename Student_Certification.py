@@ -1,3 +1,8 @@
+# SD-TA-010_Assignment/input - where input files are located
+# SD-TA-010_Assignment/input - where output files located
+# SD-TA-010_Assignment/Student_Certification.py - program script
+# SD-TA-010_Assignment/Tasks/ - folder includes solution for the text tasks 1,2 and 4
+
 import csv
 import json
 import os
@@ -5,8 +10,6 @@ import os
 from datetime import date
 
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font
-
 
 def main():
     assessmentResultsPath = "input_files/Assessment Results.csv"
@@ -52,7 +55,7 @@ def readAssessmentResults(filePath, assessmentResults):
             for line in reader:
                 rows.append(line)
     except FileNotFoundError:
-        print(f"Error opening Assessment Results.csv")
+        print(f"Error opening {filePath}")
         raise
 
     # Grab course names from the first row and push them into a list
@@ -98,7 +101,7 @@ def readIndustryCerts(filePath, assessmentResults):
             for line in reader:
                 rows.append(line)
     except FileNotFoundError:
-        print(f"Error opening Assessment Results.csv")
+        print(f"Error opening {filePath}")
         raise
 
     # Read rows from the file
@@ -136,6 +139,11 @@ def calculateOverallScore(assessmentResults):
 Method writes student results data into a dedicated xlsx file in the output folder
 '''
 def generateXlslFile(studentResults, name, outputFolder):
+    # Does not generate report if overallScore was not calculated
+    if studentResults['overallScore'] not in ['PASS', 'FAIL']:
+        print(f"Warning: overall score not calculated for {name}, does not generate report.")
+        return
+    
     generationDate = date.today().strftime("%d/%m/%Y")
 
     wb = Workbook()
@@ -168,7 +176,12 @@ def generateXlslFile(studentResults, name, outputFolder):
     ws.cell(row=row, column=2, value=studentResults["overallScore"])
 
     fileName = f"{outputFolder}/{name} - Summary of Results.xlsx"
-    wb.save(fileName)
+    # This block prevent script from crashing if file cannot be saved
+    try:
+        wb.save(fileName)
+    except PermissionError:
+        print(f"Error: cannot save {fileName} - please close the file.")
+        return
 
     if os.path.exists(fileName):
         print(f"Generated: {fileName}")
